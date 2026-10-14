@@ -77,11 +77,11 @@ button,input,select{font:inherit;color:inherit}
 .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .fld{min-width:0}
 .fld label,.slot-title{display:block;font-weight:700;font-size:13.5px;margin-bottom:7px}
-.fld input,.fld textarea,.bar input,.bar select{width:100%;min-height:48px;padding:10px 14px;border:1.5px solid transparent;border-radius:13px;background:var(--surface-2);color:var(--fg);transition:border-color .15s,background .15s,box-shadow .15s}
+.fld input,.fld textarea,.fld select,.bar input,.bar select{width:100%;min-height:48px;padding:10px 14px;border:1.5px solid transparent;border-radius:13px;background:var(--surface-2);color:var(--fg);transition:border-color .15s,background .15s,box-shadow .15s}
 .fld input::placeholder,.fld textarea::placeholder,.bar input::placeholder{color:var(--muted);opacity:.7}
 .fld input:hover,.fld textarea:hover{border-color:var(--line)}
-.fld input:focus,.fld textarea:focus,.bar input:focus,.bar select:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 4px var(--accent-soft)}
-.fld input[aria-invalid="true"],.fld textarea[aria-invalid="true"]{border-color:var(--danger);background:var(--danger-soft)}
+.fld input:focus,.fld textarea:focus,.fld select:focus,.bar input:focus,.bar select:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 4px var(--accent-soft)}
+.fld input[aria-invalid="true"],.fld select[aria-invalid="true"],.fld textarea[aria-invalid="true"]{border-color:var(--danger);background:var(--danger-soft)}
 .fld input.mono{letter-spacing:.05em}
 .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
 .msg{font-size:12.5px;margin-top:6px}
@@ -104,6 +104,7 @@ footer.foot{padding-block:28px 40px;text-align:center;color:var(--muted);font-si
 .tab{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:13px;padding:7px 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
 .tab[aria-selected="true"]{background:var(--accent-soft);color:var(--accent)}
 @media (max-width:480px){.brand>div{display:none}.tabs .tab{padding:8px 12px}}
+.fld select{cursor:pointer;text-overflow:ellipsis}
 
 
 /* ===== panel panitia ===== */
@@ -237,7 +238,7 @@ td.nm{font-weight:700}
       <select id="fjr" aria-label="Filter jurusan"></select>
     </div>
     <div class="tbl"><table>
-      <thead><tr><th>No. pendaftaran</th><th>Nama</th><th>Jurusan</th><th>NISN</th><th>HP siswa</th><th>Masuk</th><th>Status</th><th><span class="sr">Aksi</span></th></tr></thead>
+      <thead><tr><th>No. pendaftaran</th><th>Nama</th><th>Pilihan jurusan</th><th>NISN</th><th>HP siswa</th><th>Masuk</th><th>Status</th><th><span class="sr">Aksi</span></th></tr></thead>
       <tbody id="tbody"></tbody>
     </table>
     <div class="empty" id="empty" hidden>Belum ada pendaftar.</div></div>
@@ -290,8 +291,8 @@ function fmtTime(s){const d=new Date(s);return isNaN(d)?'':d.toLocaleDateString(
 function fmtHP(v){return digits(v).replace(/^(\d{4})(\d{4})(\d+)$/,'$1 $2 $3')}
 function fmtSize(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round((n||0)/1024))+' KB'}
 function waNum(v){let s=digits(v);if(s.startsWith('0'))s='62'+s.slice(1);return s}
-const fillTpl=(t,r,x)=>String(t).replace(/\{(\w+)\}/g,(m,k)=>({nama:r.nama,jurusan:jName(r.jurusan),no:r.no,catatan:(x&&x.catatan)||r.catatan||'',link:(x&&x.link)||''}[k]??m));
-function mapRow(r){return {id:r.id,no:r.no_pendaftaran,nama:r.nama,jk:r.jenis_kelamin,jurusan:r.jurusan,nik:r.nik,nisn:r.nisn,tempat:r.tempat_lahir,tgl:r.tanggal_lahir,asal:r.asal_sekolah,hp:r.hp,email:r.email,alamat:r.alamat,
+const fillTpl=(t,r,x)=>String(t).replace(/\{(\w+)\}/g,(m,k)=>({nama:r.nama,jurusan:jName((x&&x.jur)||r.jurusan),no:r.no,catatan:(x&&x.catatan)||r.catatan||'',link:(x&&x.link)||''}[k]??m));
+function mapRow(r){return {id:r.id,no:r.no_pendaftaran,nama:r.nama,jk:r.jenis_kelamin,jurusan:r.jurusan,jurusan2:r.jurusan2,nik:r.nik,nisn:r.nisn,tempat:r.tempat_lahir,tgl:r.tanggal_lahir,asal:r.asal_sekolah,hp:r.hp,email:r.email,alamat:r.alamat,
   ayah:r.nama_ayah,ibu:r.nama_ibu,hpayah:r.hp_ayah,hpibu:r.hp_ibu,status:r.status,catatan:r.catatan||'',dibuat:r.created_at,berkas:r.berkas||{}}}
 function loginMsg(t,kind){const m=$('#loginmsg');m.textContent=t||'';m.className='msg'+(t?' '+(kind||'err'):'')}
 function pmsg(t,kind){const m=$('#pmsg');if(!m)return;m.textContent=t||'';m.className='pmsg'+(kind?' '+kind:'')}
@@ -351,7 +352,7 @@ $('#fjr').addEventListener('change',e=>{S.jr=e.target.value;renderTable()});
 
 function filtered(){
   const q=$('#q').value.trim().toLowerCase();
-  return S.rows.filter(r=>(!S.st||r.status===S.st)&&(!S.jr||r.jurusan===S.jr)&&(!q||[r.nama,r.nisn,r.no,r.nik].some(x=>String(x||'').toLowerCase().includes(q))));
+  return S.rows.filter(r=>(!S.st||r.status===S.st)&&(!S.jr||r.jurusan===S.jr||r.jurusan2===S.jr)&&(!q||[r.nama,r.nisn,r.no,r.nik].some(x=>String(x||'').toLowerCase().includes(q))));
 }
 function renderTable(){
   const rows=filtered(),all=S.rows,c=s=>all.filter(r=>r.status===s).length;
@@ -360,7 +361,7 @@ function renderTable(){
   $('#empty').hidden=rows.length>0;
   $('#empty').textContent=all.length?'Tidak ada pendaftar yang cocok.':'Belum ada pendaftar.';
   $('#tbody').innerHTML=rows.map(r=>`<tr>
-    <td class="mono">${esc(r.no)}</td><td class="nm">${esc(r.nama)}</td><td><span class="tag" title="${esc(jName(r.jurusan))}">${esc(r.jurusan||'-')}</span></td>
+    <td class="mono">${esc(r.no)}</td><td class="nm">${esc(r.nama)}</td><td><span class="tag" title="${esc(jName(r.jurusan))}">${esc(r.jurusan||'-')}</span>${r.jurusan2?` <span class="tag" title="${esc(jName(r.jurusan2))}" style="opacity:.65">${esc(r.jurusan2)}</span>`:''}</td>
     <td class="mono">${esc(r.nisn)}</td><td class="mono">${esc(fmtHP(r.hp))}</td><td>${esc(fmtTime(r.dibuat))}</td>
     <td><select class="st ${esc(r.status)}" data-id="${esc(r.id)}" aria-label="Status ${esc(r.nama)}">${Object.entries(STATUS).map(([k,v])=>`<option value="${k}"${k===r.status?' selected':''}>${v}</option>`).join('')}</select></td>
     <td><button class="btn ghost sm" type="button" data-open="${esc(r.id)}">Detail</button></td></tr>`).join('');
@@ -414,7 +415,7 @@ async function openDetail(id,from){
   const r=S.rows.find(x=>x.id===id);if(!r)return;
   S.cur=r;
   const nums=[['hp','HP siswa',r.hp],['hpayah','HP ayah'+(r.ayah?' ('+r.ayah+')':''),r.hpayah],['hpibu','HP ibu'+(r.ibu?' ('+r.ibu+')':''),r.hpibu]].filter(x=>x[2]);
-  const dl=[['Jurusan',r.jurusan+' · '+jName(r.jurusan)],['Status',STATUS[r.status]||r.status],['Jenis kelamin',JK[r.jk]||'-'],['NIK',r.nik],['NISN',r.nisn],['Tempat, tgl lahir',r.tempat+', '+fmtDate(r.tgl)],['Asal sekolah',r.asal||'-'],['HP siswa',fmtHP(r.hp)],['Email',r.email],['Alamat',r.alamat||'-'],
+  const dl=[['Pilihan 1',r.jurusan+' · '+jName(r.jurusan)],['Pilihan 2',r.jurusan2?r.jurusan2+' · '+jName(r.jurusan2):'-'],['Status',STATUS[r.status]||r.status],['Jenis kelamin',JK[r.jk]||'-'],['NIK',r.nik],['NISN',r.nisn],['Tempat, tgl lahir',r.tempat+', '+fmtDate(r.tgl)],['Asal sekolah',r.asal||'-'],['HP siswa',fmtHP(r.hp)],['Email',r.email],['Alamat',r.alamat||'-'],
     ['Ayah',[r.ayah,r.hpayah&&fmtHP(r.hpayah)].filter(Boolean).join(' · ')||'-'],['Ibu',[r.ibu,r.hpibu&&fmtHP(r.hpibu)].filter(Boolean).join(' · ')||'-'],['Masuk',fmtTime(r.dibuat)]];
   openModal(`<header><div><h2 id="mtitle">${esc(r.nama)}</h2><span class="mono" style="color:var(--muted)">${esc(r.no)}</span></div><button class="btn ghost sm" type="button" id="mclose">Tutup</button></header>
     <dl>${dl.map(([a,b])=>`<dt>${a}</dt><dd>${esc(b)}</dd>`).join('')}</dl>
@@ -425,6 +426,10 @@ async function openDetail(id,from){
     <div class="row2" style="margin-bottom:10px">
       <div class="grow"><label class="sr" for="p-to">Kirim ke nomor</label>
       <select id="p-to">${nums.map(([k,l,v])=>`<option value="${esc(v)}">${esc(l)} · ${esc(fmtHP(v))}</option>`).join('')}</select></div>
+    </div>
+    <div class="row2" style="margin-bottom:10px">
+      <div class="grow"><label class="sr" for="p-jur">Diterima di jurusan</label>
+      <select id="p-jur">${[r.jurusan,r.jurusan2].filter(Boolean).map((c,i)=>`<option value="${c}">Diterima di pilihan ${i+1}: ${esc(jName(c))}</option>`).join('')}</select></div>
     </div>
     <div class="row2">
       <button class="btn wa sm" type="button" data-act="terima">Terima &amp; kirim WhatsApp</button>
@@ -466,7 +471,7 @@ $('#mpanel').addEventListener('click',async e=>{
     const link=(S.cfg.link_grup_wa||'').trim();
     if(!link){pmsg('Isi link grup/saluran WhatsApp di Pengaturan dulu, lalu coba lagi.','err');return}
     const to=$('#p-to').value;if(!to){pmsg('Tidak ada nomor tujuan.','err');return}
-    waOpen(to,fillTpl(S.cfg.pesan_diterima||DEF_TERIMA,r,{link}));
+    waOpen(to,fillTpl(S.cfg.pesan_diterima||DEF_TERIMA,r,{link,jur:$('#p-jur')?$('#p-jur').value:r.jurusan}));
     pmsg('Menandai sebagai Diterima…');
     const ok=await setStatus(r,'diterima');
     pmsg(ok?'Status diubah menjadi Diterima. Kirim pesan di tab WhatsApp yang terbuka.':'Status belum tersimpan. Coba lagi.',ok?'ok':'err');return;
@@ -523,9 +528,9 @@ async function saveSettings(){
 /* ---------- ekspor CSV ---------- */
 function csvCell(v,text){const s=String(v==null?'':v).replace(/"/g,'""');return text&&s?`"=""${s}"""`:`"${s}"`}
 $('#export').addEventListener('click',()=>{
-  const head=['No. Pendaftaran','Nama','Jurusan','Jenis Kelamin','NIK','NISN','Tempat Lahir','Tanggal Lahir','Asal Sekolah','HP Siswa','Email','Alamat','Nama Ayah','Nama Ibu','HP Ayah','HP Ibu','Status','Catatan','Masuk'];
+  const head=['No. Pendaftaran','Nama','Jurusan Pilihan 1','Jurusan Pilihan 2','Jenis Kelamin','NIK','NISN','Tempat Lahir','Tanggal Lahir','Asal Sekolah','HP Siswa','Email','Alamat','Nama Ayah','Nama Ibu','HP Ayah','HP Ibu','Status','Catatan','Masuk'];
   const lines=[head.map(h=>csvCell(h)).join(',')].concat(filtered().map(r=>[
-    csvCell(r.no),csvCell(r.nama),csvCell(jName(r.jurusan)),csvCell(JK[r.jk]||''),csvCell(r.nik,1),csvCell(r.nisn,1),csvCell(r.tempat),csvCell(r.tgl),csvCell(r.asal),csvCell(r.hp,1),csvCell(r.email),csvCell(r.alamat),
+    csvCell(r.no),csvCell(r.nama),csvCell(jName(r.jurusan)),csvCell(jName(r.jurusan2)),csvCell(JK[r.jk]||''),csvCell(r.nik,1),csvCell(r.nisn,1),csvCell(r.tempat),csvCell(r.tgl),csvCell(r.asal),csvCell(r.hp,1),csvCell(r.email),csvCell(r.alamat),
     csvCell(r.ayah),csvCell(r.ibu),csvCell(r.hpayah,1),csvCell(r.hpibu,1),csvCell(STATUS[r.status]||r.status),csvCell(r.catatan),csvCell(r.dibuat)].join(',')));
   const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pendaftar-spmb-2026-2027.csv';
